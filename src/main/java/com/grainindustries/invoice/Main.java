@@ -1,6 +1,10 @@
 package com.grainindustries.invoice;
 
 import com.formdev.flatlaf.FlatLightLaf;
+import com.grainindustries.invoice.ui.LoginForm;
+import com.grainindustries.invoice.ui.InvoiceForm;
+import com.grainindustries.invoice.util.SessionManager;
+
 import javax.swing.*;
 
 /**
@@ -18,15 +22,15 @@ public class Main {
         }
 
         SwingUtilities.invokeLater(() -> {
-            JFrame frame = new JFrame("Invoice Management System");
-            frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-            frame.setSize(1200, 800);
-            frame.setLocationRelativeTo(null);
+            LoginForm loginForm = new LoginForm(null);
+            loginForm.setVisible(true);
             
-            JLabel label = new JLabel("Invoice Management System", SwingConstants.CENTER);
-            frame.add(label);
-            
-            frame.setVisible(true);
+            if (loginForm.isSucceeded() && SessionManager.getInstance().isLoggedIn()) {
+                InvoiceForm invoiceForm = new InvoiceForm();
+                invoiceForm.setVisible(true);
+            } else {
+                System.exit(0);
+            }
         });
     }
 }

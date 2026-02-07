@@ -1,18 +1,23 @@
 package com.grainindustries.invoice.ui;
 
 import com.grainindustries.invoice.model.*;
+import com.grainindustries.invoice.service.*;
 import com.grainindustries.invoice.util.SessionManager;
 import com.toedter.calendar.JDateChooser;
 
 import javax.swing.*;
 import javax.swing.border.*;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
 import java.awt.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 public class InvoiceForm extends JFrame {
     
@@ -90,6 +95,12 @@ public class InvoiceForm extends JFrame {
     
     // Current Invoice
     private Invoice currentInvoice;
+    
+    // Services
+    private CustomerService customerService;
+    private ItemService itemService;
+    private SalesEmployeeService salesEmployeeService;
+    private InvoiceService invoiceService;
 
     public InvoiceForm() {
         setTitle("Invoice Management System");
@@ -97,10 +108,20 @@ public class InvoiceForm extends JFrame {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setMinimumSize(new Dimension(1400, 900));
         
+        // Initialize services
+        customerService = new CustomerService();
+        itemService = new ItemService();
+        salesEmployeeService = new SalesEmployeeService();
+        invoiceService = new InvoiceService();
+        
         currentInvoice = new Invoice();
         
         initComponents();
         layoutComponents();
+        
+        // Load data from database
+        loadCustomerNames();
+        loadSalesEmployees();
         
         // Initialize with current user and date
         postingDateChooser.setDate(Date.from(LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant()));
@@ -110,8 +131,8 @@ public class InvoiceForm extends JFrame {
         // Hide approval label initially
         approvalLabel.setVisible(false);
         
-        // Generate next invoice number
-        invoiceNoField.setText("14153777"); // TODO: Auto-increment from database
+        // Generate next invoice number from database
+        invoiceNoField.setText(String.valueOf(invoiceService.getNextInvoiceNumber()));
     }
     
     private void initComponents() {
@@ -119,11 +140,21 @@ public class InvoiceForm extends JFrame {
         customerCodeField = new JTextField(15);
         customerCodeButton = new JButton("...");
         customerCodeButton.setPreferredSize(new Dimension(25, 20));
+        customerCodeButton.addActionListener(e -> showCustomerChooseDialog());
+        
+        // Add document listener for type-ahead on customer code
+        customerCodeField.getDocument().addDocumentListener(new DocumentListener() {
+            public void changedUpdate(DocumentEvent e) { loadCustomerByCode(); }
+            public void removeUpdate(DocumentEvent e) { loadCustomerByCode(); }
+            public void insertUpdate(DocumentEvent e) { loadCustomerByCode(); }
+        });
         
         customerNameCombo = new JComboBox<>();
         customerNameCombo.setEditable(true);
+        customerNameCombo.addActionListener(e -> loadCustomerByName());
         customerNameButton = new JButton("...");
         customerNameButton.setPreferredSize(new Dimension(25, 20));
+        customerNameButton.addActionListener(e -> showCustomerChooseDialog());
         
         contactPersonCombo = new JComboBox<>();
         contactPersonCombo.setEditable(true);
@@ -244,6 +275,17 @@ public class InvoiceForm extends JFrame {
         salesEmployeeCombo = new JComboBox<>();
         salesEmployeeCombo.setEditable(true);
         salesEmployeeCombo.addItem("-No Sales Employee-");
+        salesEmployeeCombo.addActionListener(e -> {
+            Object selected = salesEmployeeCombo.getSelectedItem();
+            if (selected != null && !selected.toString().equals("-No Sales Employee-")) {
+                SalesEmployee emp = salesEmployeeService.getSalesEmployeeByName(selected.toString());
+                if (emp != null) {
+                    currentInvoice.setSalesEmployeeId(emp.getEmployeeId());
+                }
+            } else {
+                currentInvoice.setSalesEmployeeId(null);
+            }
+        });
         
         ownerField = new JTextField(20);
         transporterCompanyField = new JTextField(20);
@@ -783,6 +825,15 @@ public class InvoiceForm extends JFrame {
     }
     
     private void saveInvoice(boolean asDraft) {
+        // Validate customer
+        if (currentInvoice.getCustomerId() == 0) {
+            JOptionPane.showMessageDialog(this,
+                    "Please select a customer!",
+                    "Validation Error",
+                    JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        
         // Validate remarks
         if (remarksArea.getText().trim().isEmpty()) {
             JOptionPane.showMessageDialog(this,
@@ -793,45 +844,357 @@ public class InvoiceForm extends JFrame {
         }
         
         // Validate discount
+        BigDecimal discountPercent = BigDecimal.ZERO;
         try {
-            double discount = Double.parseDouble(discountPercentField.getText());
-            if (discount > 50) {
-                JOptionPane.showMessageDialog(this,
-                        "Discount cannot exceed 50%!",
-                        "Validation Error",
-                        JOptionPane.ERROR_MESSAGE);
-                return;
+            String discountText = discountPercentField.getText().trim();
+            if (!discountText.isEmpty()) {
+                discountPercent = new BigDecimal(discountText);
+                if (discountPercent.compareTo(new BigDecimal("50")) > 0) {
+                    JOptionPane.showMessageDialog(this,
+                            "Discount cannot exceed 50%!",
+                            "Validation Error",
+                            JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
             }
         } catch (NumberFormatException e) {
-            // Ignore if field is empty or invalid
+            JOptionPane.showMessageDialog(this,
+                    "Invalid discount value!",
+                    "Validation Error",
+                    JOptionPane.ERROR_MESSAGE);
+            return;
         }
         
-        // Check approval requirement
         try {
-            double total = Double.parseDouble(totalField.getText().replace(",", ""));
-            if (total > 10000) {
-                currentInvoice.setRequiresApproval(true);
-                approvalLabel.setText("Invoice will go for approval – Amount: " + totalField.getText());
-                approvalLabel.setVisible(true);
+            // Set invoice status
+            if (asDraft) {
+                currentInvoice.setStatus("Draft");
+            } else {
+                currentInvoice.setStatus("Open");
+            }
+            
+            // Set dates
+            if (postingDateChooser.getDate() != null) {
+                currentInvoice.setPostingDate(postingDateChooser.getDate().toInstant()
+                    .atZone(java.time.ZoneId.systemDefault()).toLocalDate());
+            }
+            if (dueDateChooser.getDate() != null) {
+                currentInvoice.setDueDate(dueDateChooser.getDate().toInstant()
+                    .atZone(java.time.ZoneId.systemDefault()).toLocalDate());
+            }
+            if (documentDateChooser.getDate() != null) {
+                currentInvoice.setDocumentDate(documentDateChooser.getDate().toInstant()
+                    .atZone(java.time.ZoneId.systemDefault()).toLocalDate());
+            }
+            
+            // Set invoice fields
+            currentInvoice.setInvoiceNo(Integer.parseInt(invoiceNoField.getText()));
+            currentInvoice.setPlateNo(plateNoField.getText());
+            currentInvoice.setGatePassNo(gatePassNoField.getText());
+            currentInvoice.setDriverName(driverNameField.getText());
+            currentInvoice.setDriverId(driverIdField.getText());
+            currentInvoice.setRebateRoute(rebateRouteField.getText());
+            currentInvoice.setOwner(ownerField.getText());
+            currentInvoice.setTransporterCompany(transporterCompanyField.getText());
+            currentInvoice.setTransportCode(transportCodeField.getText());
+            currentInvoice.setRouteName(routeNameField.getText());
+            currentInvoice.setJournalRemark(journalRemarkArea.getText());
+            currentInvoice.setRemarks(remarksArea.getText());
+            
+            // Set financial fields
+            currentInvoice.setDiscountPercent(discountPercent);
+            currentInvoice.setTotalDownPayment(parseDecimal(totalDownPaymentField.getText()));
+            currentInvoice.setFreight(parseDecimal(freightField.getText()));
+            currentInvoice.setRounding(roundingCheckBox.isSelected() ? parseDecimal(roundingField.getText().replace("KES ", "")) : BigDecimal.ZERO);
+            currentInvoice.setAppliedAmount(parseDecimal(appliedAmountField.getText()));
+            
+            // Set created by
+            User currentUser = SessionManager.getInstance().getCurrentUser();
+            if (currentUser != null) {
+                currentInvoice.setCreatedBy(currentUser.getUserId());
+            }
+            
+            // Get invoice lines from table
+            List<InvoiceLine> lines = getInvoiceLinesFromTable();
+            
+            // Save invoice with service
+            Invoice savedInvoice = invoiceService.createInvoice(currentInvoice, lines);
+            
+            if (savedInvoice != null) {
+                // Check if approval required
+                if (savedInvoice.isRequiresApproval()) {
+                    approvalLabel.setText("Invoice will go for approval – Amount: " + totalField.getText());
+                    approvalLabel.setVisible(true);
+                    
+                    JOptionPane.showMessageDialog(this,
+                            "Invoice saved successfully!\nAmount: " + totalField.getText() + "\nThis invoice will go for approval.",
+                            "Success - Approval Required",
+                            JOptionPane.INFORMATION_MESSAGE);
+                } else {
+                    JOptionPane.showMessageDialog(this,
+                            "Invoice " + savedInvoice.getInvoiceNo() + " saved successfully!",
+                            "Success",
+                            JOptionPane.INFORMATION_MESSAGE);
+                }
                 
+                // Reset form for new invoice
+                resetForm();
+            } else {
                 JOptionPane.showMessageDialog(this,
-                        "Invoice will go for approval – Amount: " + totalField.getText(),
-                        "Approval Required",
-                        JOptionPane.INFORMATION_MESSAGE);
+                        "Failed to save invoice!",
+                        "Error",
+                        JOptionPane.ERROR_MESSAGE);
             }
+        } catch (Exception e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this,
+                    "Error saving invoice: " + e.getMessage(),
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+    }
+    
+    /**
+     * Load customer names into dropdown from database
+     */
+    private void loadCustomerNames() {
+        customerNameCombo.removeAllItems();
+        customerNameCombo.addItem(""); // Empty option
+        List<String> customerNames = customerService.getCustomerNames();
+        for (String name : customerNames) {
+            customerNameCombo.addItem(name);
+        }
+    }
+    
+    /**
+     * Load sales employees into dropdown from database
+     */
+    private void loadSalesEmployees() {
+        salesEmployeeCombo.removeAllItems();
+        salesEmployeeCombo.addItem("-No Sales Employee-");
+        List<String> employeeNames = salesEmployeeService.getEmployeeNames();
+        for (String name : employeeNames) {
+            salesEmployeeCombo.addItem(name);
+        }
+    }
+    
+    /**
+     * Load customer by code (type-ahead)
+     */
+    private void loadCustomerByCode() {
+        String customerCode = customerCodeField.getText().trim();
+        if (!customerCode.isEmpty()) {
+            Customer customer = customerService.getCustomerByCode(customerCode);
+            if (customer != null) {
+                populateCustomerFields(customer);
+            }
+        }
+    }
+    
+    /**
+     * Load customer by selected name
+     */
+    private void loadCustomerByName() {
+        Object selected = customerNameCombo.getSelectedItem();
+        if (selected != null && !selected.toString().trim().isEmpty()) {
+            Customer customer = customerService.getCustomerByName(selected.toString());
+            if (customer != null) {
+                populateCustomerFields(customer);
+            }
+        }
+    }
+    
+    /**
+     * Populate customer fields
+     */
+    private void populateCustomerFields(Customer customer) {
+        currentInvoice.setCustomerId(customer.getCustomerId());
+        customerCodeField.setText(customer.getCustomerCode());
+        customerNameCombo.setSelectedItem(customer.getCustomerName());
+        
+        if (customer.getContactPerson() != null) {
+            contactPersonCombo.setSelectedItem(customer.getContactPerson());
+        }
+        if (customer.getCustomerRefNo() != null) {
+            customerRefNoField.setText(customer.getCustomerRefNo());
+        }
+        if (customer.getLocalCurrency() != null) {
+            localCurrencyCombo.setSelectedItem(customer.getLocalCurrency());
+        }
+        applyCashDiscountCombo.setSelectedItem(customer.isApplyCashDiscount() ? "Yes" : "No");
+        if (customer.getClientType() != null) {
+            clientInhouseCombo.setSelectedItem(customer.getClientType());
+        }
+    }
+    
+    /**
+     * Show customer choose dialog
+     */
+    private void showCustomerChooseDialog() {
+        List<Customer> customers = customerService.getAllCustomers();
+        
+        String[] columnNames = {"Code", "Name", "Contact Person", "Phone", "Email"};
+        Object[][] data = new Object[customers.size()][5];
+        
+        for (int i = 0; i < customers.size(); i++) {
+            Customer c = customers.get(i);
+            data[i][0] = c.getCustomerCode();
+            data[i][1] = c.getCustomerName();
+            data[i][2] = c.getContactPerson();
+            data[i][3] = c.getPhone();
+            data[i][4] = c.getEmail();
+        }
+        
+        JTable table = new JTable(data, columnNames);
+        table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        JScrollPane scrollPane = new JScrollPane(table);
+        scrollPane.setPreferredSize(new Dimension(700, 400));
+        
+        int result = JOptionPane.showConfirmDialog(this, scrollPane, 
+                "Choose Customer", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        
+        if (result == JOptionPane.OK_OPTION) {
+            int selectedRow = table.getSelectedRow();
+            if (selectedRow >= 0) {
+                Customer selectedCustomer = customers.get(selectedRow);
+                populateCustomerFields(selectedCustomer);
+            }
+        }
+    }
+    
+    /**
+     * Get invoice lines from table
+     */
+    private List<InvoiceLine> getInvoiceLinesFromTable() {
+        List<InvoiceLine> lines = new ArrayList<>();
+        
+        for (int i = 0; i < tableModel.getRowCount(); i++) {
+            // Check if row has item data
+            Object itemNoObj = tableModel.getValueAt(i, 2); // Item No. column
+            if (itemNoObj != null && !itemNoObj.toString().trim().isEmpty()) {
+                InvoiceLine line = new InvoiceLine();
+                line.setLineNumber(i + 1);
+                
+                // Get item
+                String itemNo = itemNoObj.toString();
+                Item item = itemService.getItemByNo(itemNo);
+                if (item != null) {
+                    line.setItemId(item.getItemId());
+                    line.setItemType(item.getItemType());
+                    line.setVatCode(item.getVatCode());
+                    
+                    // Set quantities
+                    line.setLoadedQty(getTableBigDecimal(i, 4));
+                    line.setFreeQty(getTableBigDecimal(i, 5));
+                    line.setActualQty(getTableBigDecimal(i, 6));
+                    line.setQtyInWhse(getTableBigDecimal(i, 7));
+                    line.setOpenQty(getTableBigDecimal(i, 9));
+                    
+                    // Set warehouse
+                    Object whseObj = tableModel.getValueAt(i, 10);
+                    if (whseObj != null) {
+                        line.setWhse(whseObj.toString());
+                    }
+                    
+                    // Set prices
+                    line.setUnitPrice(getTableBigDecimal(i, 11));
+                    line.setDiscountPercent(getTableBigDecimal(i, 12));
+                    
+                    // Calculate line totals using service
+                    invoiceService.calculateLineTotals(line);
+                    
+                    lines.add(line);
+                }
+            }
+        }
+        
+        return lines;
+    }
+    
+    /**
+     * Get BigDecimal value from table cell
+     */
+    private BigDecimal getTableBigDecimal(int row, int col) {
+        Object value = tableModel.getValueAt(row, col);
+        if (value != null && !value.toString().trim().isEmpty()) {
+            try {
+                return new BigDecimal(value.toString().trim());
+            } catch (NumberFormatException e) {
+                return BigDecimal.ZERO;
+            }
+        }
+        return BigDecimal.ZERO;
+    }
+    
+    /**
+     * Parse decimal from text field
+     */
+    private BigDecimal parseDecimal(String text) {
+        if (text == null || text.trim().isEmpty() || text.equals("0.00")) {
+            return BigDecimal.ZERO;
+        }
+        try {
+            return new BigDecimal(text.trim().replace(",", ""));
         } catch (NumberFormatException e) {
-            // Ignore
+            return BigDecimal.ZERO;
+        }
+    }
+    
+    /**
+     * Reset form for new invoice
+     */
+    private void resetForm() {
+        currentInvoice = new Invoice();
+        
+        // Clear customer fields
+        customerCodeField.setText("");
+        customerNameCombo.setSelectedIndex(0);
+        contactPersonCombo.setSelectedIndex(-1);
+        customerRefNoField.setText("");
+        localCurrencyCombo.setSelectedItem("KES");
+        applyCashDiscountCombo.setSelectedItem("No");
+        clientInhouseCombo.setSelectedItem("Client");
+        rebateRouteField.setText("");
+        
+        // Clear right section
+        invoiceNoField.setText(String.valueOf(invoiceService.getNextInvoiceNumber()));
+        statusField.setText("Open");
+        postingDateChooser.setDate(Date.from(LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant()));
+        dueDateChooser.setDate(null);
+        documentDateChooser.setDate(Date.from(LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant()));
+        plateNoField.setText("");
+        gatePassNoField.setText("");
+        driverNameField.setText("");
+        driverIdField.setText("");
+        
+        // Clear table
+        for (int i = 0; i < tableModel.getRowCount(); i++) {
+            for (int j = 1; j < tableModel.getColumnCount(); j++) {
+                tableModel.setValueAt("", i, j);
+            }
         }
         
-        if (asDraft) {
-            currentInvoice.setStatus("Draft");
-        } else {
-            currentInvoice.setStatus("Open");
-        }
+        // Clear footer fields
+        salesEmployeeCombo.setSelectedIndex(0);
+        ownerField.setText("");
+        transporterCompanyField.setText("");
+        transportCodeField.setText("");
+        routeNameField.setText("");
+        journalRemarkArea.setText("");
+        remarksArea.setText("");
         
-        JOptionPane.showMessageDialog(this,
-                "Invoice saved successfully!",
-                "Success",
-                JOptionPane.INFORMATION_MESSAGE);
+        // Clear financial fields
+        totalBeforeDiscountField.setText("0.00");
+        discountPercentField.setText("0.00");
+        totalDownPaymentField.setText("0.00");
+        freightField.setText("0.00");
+        roundingField.setText("KES 0.00");
+        taxField.setText("0.00");
+        totalField.setText("KES 0.00");
+        appliedAmountField.setText("0.00");
+        balanceDueField.setText("0.00");
+        
+        // Hide approval label
+        approvalLabel.setVisible(false);
     }
 }

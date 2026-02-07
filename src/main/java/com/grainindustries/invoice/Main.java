@@ -2,8 +2,6 @@ package com.grainindustries.invoice;
 
 import com.formdev.flatlaf.FlatLightLaf;
 import com.grainindustries.invoice.ui.LoginForm;
-import com.grainindustries.invoice.ui.InvoiceForm;
-import com.grainindustries.invoice.util.SessionManager;
 
 import javax.swing.*;
 
@@ -22,15 +20,7 @@ public class Main {
         }
 
         SwingUtilities.invokeLater(() -> {
-            LoginForm loginForm = new LoginForm(null);
-            loginForm.setVisible(true);
-            
-            if (loginForm.isSucceeded() && SessionManager.getInstance().isLoggedIn()) {
-                InvoiceForm invoiceForm = new InvoiceForm();
-                invoiceForm.setVisible(true);
-            } else {
-                System.exit(0);
-            }
+            new LoginForm();
         });
     }
 }

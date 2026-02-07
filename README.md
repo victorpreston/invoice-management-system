@@ -30,10 +30,28 @@ src/
 
 ## Getting Started
 
-1. Configure your SQL Server database connection in `src/main/resources/database.properties`
-2. Create the database schema in SQL Server
-3. Build the project with Maven: `mvn clean install`
-4. Run the application
+### Using Docker (Recommended)
+
+1. Start SQL Server with Docker:
+   ```bash
+   docker-compose up -d
+   ```
+
+2. Create the database (see [DOCKER.md](DOCKER.md) for details)
+
+3. Build and run the application:
+   ```bash
+   mvn clean install
+   mvn exec:java -Dexec.mainClass="com.grainindustries.invoice.Main"
+   ```
+
+### Manual Setup
+
+1. Install SQL Server locally
+2. Configure your database connection in `src/main/resources/database.properties`
+3. Create the database schema
+4. Build the project with Maven: `mvn clean install`
+5. Run the application
 
 ## Development Progress
 

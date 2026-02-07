@@ -22,3 +22,6 @@ dependency-reduced-pom.xml
 
 # Database
 *.db
+
+# Environment variables
+.env

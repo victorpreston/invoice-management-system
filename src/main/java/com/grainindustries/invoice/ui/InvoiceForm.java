@@ -40,6 +40,7 @@ public class InvoiceForm extends JFrame {
     private JTextField rebateRouteField;
     
     // Header Components - Right Section
+    private JComboBox<String> invoiceTypeCombo;
     private JTextField invoiceNoField;
     private JTextField statusField;
     private JDateChooser postingDateChooser;
@@ -56,6 +57,7 @@ public class InvoiceForm extends JFrame {
     // Table Components
     private JTable invoiceTable;
     private DefaultTableModel tableModel;
+    private JComboBox<String> itemServiceTypeCombo;
     private JComboBox<String> summaryTypeCombo;
     
     // Footer Components - Left Section
@@ -72,6 +74,7 @@ public class InvoiceForm extends JFrame {
     private JTextField discountPercentField;
     private JTextField totalDownPaymentField;
     private JTextField freightField;
+    private JCheckBox roundingCheckBox;
     private JTextField roundingField;
     private JTextField taxField;
     private JTextField totalField;
@@ -135,6 +138,9 @@ public class InvoiceForm extends JFrame {
         rebateRouteField = new JTextField(20);
         
         // Header - Right Section
+        invoiceTypeCombo = new JComboBox<>(new String[]{"IN", "OUT"});
+        invoiceTypeCombo.setSelectedItem("IN");
+        
         invoiceNoField = new JTextField(15);
         invoiceNoField.setEditable(false);
         
@@ -208,6 +214,7 @@ public class InvoiceForm extends JFrame {
             tableModel.setValueAt(i + 1, i, 0);
         }
         
+        itemServiceTypeCombo = new JComboBox<>(new String[]{"Item", "Service"});
         summaryTypeCombo = new JComboBox<>(new String[]{"No Summary", "Summary"});
         
         // Footer - Left Section
@@ -231,9 +238,16 @@ public class InvoiceForm extends JFrame {
         discountPercentField = createNumericField();
         totalDownPaymentField = createNumericField();
         freightField = createNumericField();
+        
+        roundingCheckBox = new JCheckBox();
+        roundingCheckBox.setSelected(true);
+        roundingCheckBox.setBackground(Color.WHITE);
+        
         roundingField = createNumericField();
+        roundingField.setText("KES 0.00");
         taxField = createNumericField();
         totalField = createNumericField();
+        totalField.setText("KES 0.00");
         appliedAmountField = createNumericField();
         balanceDueField = createNumericField();
         
@@ -357,23 +371,34 @@ public class InvoiceForm extends JFrame {
         // Apply Cash Discount
         addFormRow(leftPanel, gbc, row++, "Apply Cash Discount", applyCashDiscountCombo, null);
         
-        // Client/Inhouse
-        addFormRow(leftPanel, gbc, row++, "Client/Inhouse", clientInhouseCombo, null);
-        
-        // Draft/Open RR List
-        addFormRow(leftPanel, gbc, row++, "Draft/Open RR List", draftOpenRRListCombo, null);
-        
-        // Rebate Route
-        gbc.gridx = 2;
-        gbc.gridy = 0;
+        // Client/Inhouse and Rebate Route on same row
+        gbc.gridx = 0;
+        gbc.gridy = row;
         gbc.gridwidth = 1;
+        gbc.weightx = 0;
+        JLabel clientLabel = new JLabel("Client/Inhouse");
+        clientLabel.setForeground(Color.BLACK);
+        clientLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        leftPanel.add(clientLabel, gbc);
+        
+        gbc.gridx = 1;
+        gbc.weightx = 1.0;
+        leftPanel.add(clientInhouseCombo, gbc);
+        
+        gbc.gridx = 2;
+        gbc.weightx = 0;
         JLabel rebateLabel = new JLabel("Rebate Route");
         rebateLabel.setForeground(Color.BLACK);
         rebateLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
         leftPanel.add(rebateLabel, gbc);
+        
         gbc.gridx = 3;
-        gbc.gridwidth = 2;
+        gbc.weightx = 1.0;
         leftPanel.add(rebateRouteField, gbc);
+        row++;
+        
+        // Draft/Open RR List
+        addFormRow(leftPanel, gbc, row++, "Draft/Open RR List", draftOpenRRListCombo, null);
         
         // Right side panel
         JPanel rightPanel = new JPanel(new GridBagLayout());
@@ -385,8 +410,25 @@ public class InvoiceForm extends JFrame {
         
         int rightRow = 0;
         
-        // No.
-        addFormRow(rightPanel, gbc2, rightRow++, "No.", invoiceNoField, null);
+        // No. with dropdown
+        gbc2.gridx = 0;
+        gbc2.gridy = rightRow;
+        gbc2.gridwidth = 1;
+        gbc2.weightx = 0;
+        JLabel noLabel = new JLabel("No.");
+        noLabel.setForeground(Color.BLACK);
+        noLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        rightPanel.add(noLabel, gbc2);
+        
+        gbc2.gridx = 1;
+        gbc2.weightx = 0;
+        invoiceTypeCombo.setPreferredSize(new Dimension(60, 20));
+        rightPanel.add(invoiceTypeCombo, gbc2);
+        
+        gbc2.gridx = 2;
+        gbc2.weightx = 1.0;
+        rightPanel.add(invoiceNoField, gbc2);
+        rightRow++;
         
         // Status
         addFormRow(rightPanel, gbc2, rightRow++, "Status", statusField, null);
@@ -473,14 +515,29 @@ public class InvoiceForm extends JFrame {
         tabbedPane.addTab("Email/SMS", null);
         tabbedPane.addTab("ETIMS", null);
         
-        JPanel topPanel = new JPanel(new BorderLayout());
-        topPanel.add(tabbedPane, BorderLayout.CENTER);
+        // Top controls panel
+        JPanel topControlsPanel = new JPanel(new BorderLayout());
+        topControlsPanel.setBackground(Color.WHITE);
         
-        // Summary Type combo on the right
-        JPanel summaryPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        summaryPanel.add(new JLabel("Summary Type"));
-        summaryPanel.add(summaryTypeCombo);
-        topPanel.add(summaryPanel, BorderLayout.EAST);
+        // Item/Service Type on left
+        JPanel leftControls = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        leftControls.setBackground(Color.WHITE);
+        leftControls.add(new JLabel("Item/Service Type"));
+        leftControls.add(itemServiceTypeCombo);
+        
+        // Summary Type on right
+        JPanel rightControls = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        rightControls.setBackground(Color.WHITE);
+        rightControls.add(new JLabel("Summary Type"));
+        rightControls.add(summaryTypeCombo);
+        
+        topControlsPanel.add(leftControls, BorderLayout.WEST);
+        topControlsPanel.add(rightControls, BorderLayout.EAST);
+        
+        JPanel topPanel = new JPanel(new BorderLayout());
+        topPanel.setBackground(Color.WHITE);
+        topPanel.add(tabbedPane, BorderLayout.NORTH);
+        topPanel.add(topControlsPanel, BorderLayout.CENTER);
         
         panel.add(topPanel, BorderLayout.NORTH);
         
@@ -589,11 +646,36 @@ public class InvoiceForm extends JFrame {
         // Total Down Payment
         addFinancialRow(rightPanel, gbc2, rightRow++, "Total Down Payment", totalDownPaymentField);
         
-        // Freight
-        addFinancialRow(rightPanel, gbc2, rightRow++, "Freight", freightField);
+        // Freight with arrow icon
+        gbc2.gridx = 0;
+        gbc2.gridy = rightRow;
+        gbc2.gridwidth = 1;
+        gbc2.weightx = 0;
+        JLabel freightLabel = new JLabel("▼ Freight");
+        freightLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        rightPanel.add(freightLabel, gbc2);
         
-        // Rounding
-        addFinancialRow(rightPanel, gbc2, rightRow++, "Rounding", roundingField);
+        gbc2.gridx = 1;
+        gbc2.weightx = 1.0;
+        freightField.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        rightPanel.add(freightField, gbc2);
+        rightRow++;
+        
+        // Rounding with checkbox
+        gbc2.gridx = 0;
+        gbc2.gridy = rightRow;
+        gbc2.gridwidth = 1;
+        gbc2.weightx = 0;
+        JPanel roundingPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        roundingPanel.setBackground(Color.WHITE);
+        roundingPanel.add(roundingCheckBox);
+        roundingPanel.add(new JLabel("Rounding"));
+        rightPanel.add(roundingPanel, gbc2);
+        
+        gbc2.gridx = 1;
+        gbc2.weightx = 1.0;
+        rightPanel.add(roundingField, gbc2);
+        rightRow++;
         
         // Tax
         addFinancialRow(rightPanel, gbc2, rightRow++, "Tax", taxField);
@@ -610,18 +692,25 @@ public class InvoiceForm extends JFrame {
         panel.add(leftPanel, BorderLayout.CENTER);
         panel.add(rightPanel, BorderLayout.EAST);
         
-        // Bottom Buttons Panel
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        buttonPanel.setBackground(Color.WHITE);
-        buttonPanel.add(addNewButton);
-        buttonPanel.add(addDraftNewButton);
-        buttonPanel.add(cancelButton);
-        buttonPanel.add(copyFromButton);
-        buttonPanel.add(copyToButton);
-        
+        // Bottom Buttons Panel  
         JPanel bottomPanel = new JPanel(new BorderLayout());
         bottomPanel.setBackground(Color.WHITE);
-        bottomPanel.add(buttonPanel, BorderLayout.WEST);
+        
+        // Left buttons: Add & New, Add Draft & New, Cancel
+        JPanel leftButtons = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        leftButtons.setBackground(Color.WHITE);
+        leftButtons.add(addNewButton);
+        leftButtons.add(addDraftNewButton);
+        leftButtons.add(cancelButton);
+        
+        // Right buttons: Copy From, Copy To
+        JPanel rightButtons = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        rightButtons.setBackground(Color.WHITE);
+        rightButtons.add(copyFromButton);
+        rightButtons.add(copyToButton);
+        
+        bottomPanel.add(leftButtons, BorderLayout.WEST);
+        bottomPanel.add(rightButtons, BorderLayout.EAST);
         panel.add(bottomPanel, BorderLayout.SOUTH);
         
         return panel;

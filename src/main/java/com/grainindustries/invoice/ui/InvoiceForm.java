@@ -21,7 +21,7 @@ import java.util.List;
 
 public class InvoiceForm extends JFrame {
     
-    // Color Constants matching the screenshot
+    // Color Constants
     private static final Color HEADER_BG_COLOR = new Color(74, 98, 120); // Blue-gray header
     private static final Color ADD_NEW_BUTTON_COLOR = new Color(41, 98, 119); // Dark teal for Add & New
     private static final Color ADD_DRAFT_BUTTON_COLOR = new Color(245, 245, 245); // Very light gray for Add Draft & New
@@ -32,7 +32,7 @@ public class InvoiceForm extends JFrame {
     private static final Color FIELD_BG_COLOR = Color.WHITE;
     private static final Color REQUIRED_FIELD_COLOR = new Color(255, 255, 230); // Light yellow for required fields
     
-    // Header Components - Left Section
+    // Header Components
     private JTextField customerCodeField;
     private JButton customerCodeButton;
     private JComboBox<String> customerNameCombo;
@@ -45,7 +45,7 @@ public class InvoiceForm extends JFrame {
     private JComboBox<String> draftOpenRRListCombo;
     private JTextField rebateRouteField;
     
-    // Header Components - Right Section
+    // Header Components
     private JTextField invoiceNoField;
     private JTextField statusField;
     private JDateChooser postingDateChooser;
@@ -65,7 +65,7 @@ public class InvoiceForm extends JFrame {
     private JComboBox<String> itemServiceTypeCombo;
     private JComboBox<String> summaryTypeCombo;
     
-    // Footer Components - Left Section
+    // Footer Components
     private JComboBox<String> salesEmployeeCombo;
     private JTextField ownerField;
     private JTextField transporterCompanyField;
@@ -74,7 +74,7 @@ public class InvoiceForm extends JFrame {
     private JTextArea journalRemarkArea;
     private JTextArea remarksArea;
     
-    // Footer Components - Right Section
+    // Footer Components
     private JTextField totalBeforeDiscountField;
     private JTextField discountPercentField;
     private JTextField totalDownPaymentField;
@@ -101,6 +101,9 @@ public class InvoiceForm extends JFrame {
     private ItemService itemService;
     private SalesEmployeeService salesEmployeeService;
     private InvoiceService invoiceService;
+    
+    // Prevent recursive listener triggers
+    private boolean isUpdatingCustomerFields = false;
 
     public InvoiceForm() {
         setTitle("Invoice Management System");
@@ -142,16 +145,24 @@ public class InvoiceForm extends JFrame {
         customerCodeButton.setPreferredSize(new Dimension(25, 20));
         customerCodeButton.addActionListener(e -> showCustomerChooseDialog());
         
-        // Add document listener for type-ahead on customer code
+        // Add document listener
         customerCodeField.getDocument().addDocumentListener(new DocumentListener() {
-            public void changedUpdate(DocumentEvent e) { loadCustomerByCode(); }
-            public void removeUpdate(DocumentEvent e) { loadCustomerByCode(); }
-            public void insertUpdate(DocumentEvent e) { loadCustomerByCode(); }
+            public void changedUpdate(DocumentEvent e) { 
+                if (!isUpdatingCustomerFields) loadCustomerByCode(); 
+            }
+            public void removeUpdate(DocumentEvent e) { 
+                if (!isUpdatingCustomerFields) loadCustomerByCode(); 
+            }
+            public void insertUpdate(DocumentEvent e) { 
+                if (!isUpdatingCustomerFields) loadCustomerByCode(); 
+            }
         });
         
         customerNameCombo = new JComboBox<>();
         customerNameCombo.setEditable(true);
-        customerNameCombo.addActionListener(e -> loadCustomerByName());
+        customerNameCombo.addActionListener(e -> {
+            if (!isUpdatingCustomerFields) loadCustomerByName();
+        });
         customerNameButton = new JButton("...");
         customerNameButton.setPreferredSize(new Dimension(25, 20));
         customerNameButton.addActionListener(e -> showCustomerChooseDialog());
@@ -205,7 +216,7 @@ public class InvoiceForm extends JFrame {
         tableModel = new DefaultTableModel(columns, 10) {
             @Override
             public boolean isCellEditable(int row, int column) {
-                return column != 0; // Row number is not editable
+                return column != 0;
             }
         };
         
@@ -213,7 +224,7 @@ public class InvoiceForm extends JFrame {
         invoiceTable.setRowHeight(20);
         invoiceTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
         
-        // Set column widths for better visibility
+        // Set column widths
         int[] columnWidths = {30, 120, 80, 150, 80, 70, 80, 90, 80, 75, 70, 85, 85, 120, 80, 140, 90, 110};
         for (int i = 0; i < columnWidths.length && i < invoiceTable.getColumnCount(); i++) {
             invoiceTable.getColumnModel().getColumn(i).setPreferredWidth(columnWidths[i]);
@@ -229,7 +240,7 @@ public class InvoiceForm extends JFrame {
         header.setFont(new Font("Segoe UI", Font.BOLD, 11));
         header.setPreferredSize(new Dimension(header.getPreferredSize().width, 24));
         
-        // Add alternating row colors and proper cell formatting
+        // Add alternating row colors
         invoiceTable.setDefaultRenderer(Object.class, new javax.swing.table.DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value,
@@ -245,10 +256,10 @@ public class InvoiceForm extends JFrame {
                     c.setBackground(row % 2 == 0 ? Color.WHITE : TABLE_ALT_ROW_COLOR);
                 }
                 
-                // Right-align numeric columns (LoadedQty, FreeQty, ActualQty, etc.)
+                // Right-align numeric columns
                 if (c instanceof JLabel) {
                     JLabel label = (JLabel) c;
-                    if (column >= 4 && column <= 17) { // Numeric columns
+                    if (column >= 4 && column <= 17) {
                         label.setHorizontalAlignment(JLabel.RIGHT);
                     } else {
                         label.setHorizontalAlignment(JLabel.LEFT);
@@ -262,9 +273,8 @@ public class InvoiceForm extends JFrame {
         // Add row numbers
         for (int i = 0; i < 10; i++) {
             tableModel.setValueAt(i + 1, i, 0);
-            // Set default zero values for first row
             if (i == 0) {
-                tableModel.setValueAt("0.000000", i, 12); // Discount %
+                tableModel.setValueAt("0.000000", i, 12);
             }
         }
         
@@ -298,7 +308,7 @@ public class InvoiceForm extends JFrame {
         remarksArea = new JTextArea(3, 20);
         remarksArea.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY));
         
-        // Footer - Right Section (Financial Fields)
+        // Footer
         totalBeforeDiscountField = createNumericField();
         discountPercentField = createNumericField();
         totalDownPaymentField = createNumericField();
@@ -316,11 +326,11 @@ public class InvoiceForm extends JFrame {
         appliedAmountField = createNumericField();
         balanceDueField = createNumericField();
         
-        // Make certain financial fields bold
+        
         totalField.setFont(new Font("Arial", Font.BOLD, 12));
         balanceDueField.setFont(new Font("Arial", Font.BOLD, 12));
         
-        // Buttons with styled colors matching screenshot
+        
         addNewButton = createStyledButton("Add & New", ADD_NEW_BUTTON_COLOR);
         addDraftNewButton = createStyledButton("Add Draft & New", ADD_DRAFT_BUTTON_COLOR);
         cancelButton = createStyledButton("Cancel", CANCEL_BUTTON_COLOR);
@@ -332,7 +342,6 @@ public class InvoiceForm extends JFrame {
         addDraftNewButton.addActionListener(e -> saveInvoice(true));
         cancelButton.addActionListener(e -> dispose());
         
-        // Add listeners for validation and calculation
         remarksArea.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
             public void changedUpdate(javax.swing.event.DocumentEvent e) { validateRemarks(); }
             public void removeUpdate(javax.swing.event.DocumentEvent e) { validateRemarks(); }
@@ -354,13 +363,13 @@ public class InvoiceForm extends JFrame {
         button.setBackground(bgColor);
         // Set text color: white for dark buttons, dark gray for light buttons
         if (bgColor.getRed() > 200 && bgColor.getGreen() > 200 && bgColor.getBlue() > 200) {
-            button.setForeground(new Color(60, 60, 60)); // Dark gray text for light buttons
+            button.setForeground(new Color(60, 60, 60));
         } else {
-            button.setForeground(Color.WHITE); // White text for dark buttons
+            button.setForeground(Color.WHITE);
         }
         button.setFont(new Font("Segoe UI", Font.PLAIN, 11));
         button.setFocusPainted(false);
-        button.setBorder(BorderFactory.createLineBorder(new Color(180, 180, 180), 1)); // Flat border with no radius
+        button.setBorder(BorderFactory.createLineBorder(new Color(180, 180, 180), 1));
         button.setOpaque(true);
         button.setPreferredSize(new Dimension(120, 28));
         button.setCursor(new Cursor(Cursor.HAND_CURSOR));
@@ -399,7 +408,6 @@ public class InvoiceForm extends JFrame {
         panel.setBackground(Color.WHITE);
         panel.setBorder(new EmptyBorder(0, 10, 5, 10));
         
-        // Title bar - thin blue-gray bar
         JLabel titleLabel = new JLabel("AR Invoice");
         titleLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         titleLabel.setForeground(Color.WHITE);
@@ -1008,22 +1016,27 @@ public class InvoiceForm extends JFrame {
      * Populate customer fields
      */
     private void populateCustomerFields(Customer customer) {
-        currentInvoice.setCustomerId(customer.getCustomerId());
-        customerCodeField.setText(customer.getCustomerCode());
-        customerNameCombo.setSelectedItem(customer.getCustomerName());
-        
-        if (customer.getContactPerson() != null) {
-            contactPersonCombo.setSelectedItem(customer.getContactPerson());
-        }
-        if (customer.getCustomerRefNo() != null) {
-            customerRefNoField.setText(customer.getCustomerRefNo());
-        }
-        if (customer.getLocalCurrency() != null) {
-            localCurrencyCombo.setSelectedItem(customer.getLocalCurrency());
-        }
-        applyCashDiscountCombo.setSelectedItem(customer.isApplyCashDiscount() ? "Yes" : "No");
-        if (customer.getClientType() != null) {
-            clientInhouseCombo.setSelectedItem(customer.getClientType());
+        isUpdatingCustomerFields = true;
+        try {
+            currentInvoice.setCustomerId(customer.getCustomerId());
+            customerCodeField.setText(customer.getCustomerCode());
+            customerNameCombo.setSelectedItem(customer.getCustomerName());
+            
+            if (customer.getContactPerson() != null) {
+                contactPersonCombo.setSelectedItem(customer.getContactPerson());
+            }
+            if (customer.getCustomerRefNo() != null) {
+                customerRefNoField.setText(customer.getCustomerRefNo());
+            }
+            if (customer.getLocalCurrency() != null) {
+                localCurrencyCombo.setSelectedItem(customer.getLocalCurrency());
+            }
+            applyCashDiscountCombo.setSelectedItem(customer.isApplyCashDiscount() ? "Yes" : "No");
+            if (customer.getClientType() != null) {
+                clientInhouseCombo.setSelectedItem(customer.getClientType());
+            }
+        } finally {
+            isUpdatingCustomerFields = false;
         }
     }
     

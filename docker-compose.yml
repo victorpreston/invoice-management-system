@@ -4,19 +4,43 @@ services:
     container_name: invoice-sqlserver
     environment:
       - ACCEPT_EULA=Y
-      - SA_PASSWORD=${SA_PASSWORD}
+      - SA_PASSWORD=ArInvoice2024!
       - MSSQL_PID=Developer
     ports:
-      - "${DB_PORT:-1433}:1433"
+      - "1433:1433"
     volumes:
       - sqlserver_data:/var/opt/mssql
     networks:
       - invoice-network
     healthcheck:
-      test: /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P $${SA_PASSWORD} -Q "SELECT 1" || exit 1
+      test: /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P ArInvoice2024! -Q "SELECT 1" -C || exit 1
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 30s
+
+  db-init:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: invoice-db-init
+    environment:
+      - SA_PASSWORD=ArInvoice2024!
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    networks:
+      - invoice-network
+    volumes:
+      - ./src/main/resources/schema.sql:/schema.sql:ro
+    command: >
+      bash -c "
+      echo 'Waiting for SQL Server to be fully ready...';
+      sleep 10;
+      echo 'Creating database if not exists...';
+      /opt/mssql-tools18/bin/sqlcmd -S sqlserver -U sa -P ArInvoice2024! -Q \"CREATE DATABASE invoice_db\" -C || echo 'Database may already exist';
+      echo 'Initializing database schema...';
+      /opt/mssql-tools18/bin/sqlcmd -S sqlserver -U sa -P ArInvoice2024! -d invoice_db -i /schema.sql -C;
+      echo 'Database initialization completed!';
+      "
 
 volumes:
   sqlserver_data:

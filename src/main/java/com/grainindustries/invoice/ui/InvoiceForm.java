@@ -18,9 +18,10 @@ public class InvoiceForm extends JFrame {
     
     // Color Constants matching the screenshot
     private static final Color HEADER_BG_COLOR = new Color(74, 98, 120); // Blue-gray header
-    private static final Color PRIMARY_BUTTON_COLOR = new Color(52, 119, 174); // Blue for Add & New
-    private static final Color SECONDARY_BUTTON_COLOR = new Color(108, 117, 125); // Gray for other buttons
-    private static final Color CANCEL_BUTTON_COLOR = new Color(108, 117, 125); // Dark gray for Cancel
+    private static final Color ADD_NEW_BUTTON_COLOR = new Color(41, 98, 119); // Dark teal for Add & New
+    private static final Color ADD_DRAFT_BUTTON_COLOR = new Color(245, 245, 245); // Very light gray for Add Draft & New
+    private static final Color CANCEL_BUTTON_COLOR = new Color(74, 98, 120); // Blue-gray for Cancel
+    private static final Color COPY_BUTTON_COLOR = new Color(245, 245, 245); // Very light gray for Copy buttons
     private static final Color TABLE_ALT_ROW_COLOR = new Color(240, 248, 255); // Light blue for alternating rows
     private static final Color TABLE_HEADER_COLOR = new Color(200, 215, 230); // Light blue-gray for headers
     private static final Color FIELD_BG_COLOR = Color.WHITE;
@@ -40,7 +41,6 @@ public class InvoiceForm extends JFrame {
     private JTextField rebateRouteField;
     
     // Header Components - Right Section
-    private JComboBox<String> invoiceTypeCombo;
     private JTextField invoiceNoField;
     private JTextField statusField;
     private JDateChooser postingDateChooser;
@@ -138,9 +138,6 @@ public class InvoiceForm extends JFrame {
         rebateRouteField = new JTextField(20);
         
         // Header - Right Section
-        invoiceTypeCombo = new JComboBox<>(new String[]{"IN", "OUT"});
-        invoiceTypeCombo.setSelectedItem("IN");
-        
         invoiceNoField = new JTextField(15);
         invoiceNoField.setEditable(false);
         
@@ -182,9 +179,14 @@ public class InvoiceForm extends JFrame {
         };
         
         invoiceTable = new JTable(tableModel);
-        invoiceTable.setRowHeight(25);
-        invoiceTable.getColumnModel().getColumn(0).setPreferredWidth(30);
+        invoiceTable.setRowHeight(20);
         invoiceTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
+        
+        // Set column widths for better visibility
+        int[] columnWidths = {30, 120, 80, 150, 80, 70, 80, 90, 80, 75, 70, 85, 85, 120, 80, 140, 90, 110};
+        for (int i = 0; i < columnWidths.length && i < invoiceTable.getColumnCount(); i++) {
+            invoiceTable.getColumnModel().getColumn(i).setPreferredWidth(columnWidths[i]);
+        }
         invoiceTable.setFont(new Font("Segoe UI", Font.PLAIN, 11));
         invoiceTable.setGridColor(new Color(220, 220, 220));
         invoiceTable.setShowGrid(true);
@@ -194,17 +196,34 @@ public class InvoiceForm extends JFrame {
         header.setBackground(TABLE_HEADER_COLOR);
         header.setForeground(Color.BLACK);
         header.setFont(new Font("Segoe UI", Font.BOLD, 11));
-        header.setPreferredSize(new Dimension(header.getPreferredSize().width, 28));
+        header.setPreferredSize(new Dimension(header.getPreferredSize().width, 24));
         
-        // Add alternating row colors
+        // Add alternating row colors and proper cell formatting
         invoiceTable.setDefaultRenderer(Object.class, new javax.swing.table.DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value,
                     boolean isSelected, boolean hasFocus, int row, int column) {
                 Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                
+                // Set font and text color
+                c.setFont(new Font("Segoe UI", Font.PLAIN, 10));
+                c.setForeground(Color.BLACK);
+                
+                // Alternating row colors
                 if (!isSelected) {
                     c.setBackground(row % 2 == 0 ? Color.WHITE : TABLE_ALT_ROW_COLOR);
                 }
+                
+                // Right-align numeric columns (LoadedQty, FreeQty, ActualQty, etc.)
+                if (c instanceof JLabel) {
+                    JLabel label = (JLabel) c;
+                    if (column >= 4 && column <= 17) { // Numeric columns
+                        label.setHorizontalAlignment(JLabel.RIGHT);
+                    } else {
+                        label.setHorizontalAlignment(JLabel.LEFT);
+                    }
+                }
+                
                 return c;
             }
         });
@@ -212,6 +231,10 @@ public class InvoiceForm extends JFrame {
         // Add row numbers
         for (int i = 0; i < 10; i++) {
             tableModel.setValueAt(i + 1, i, 0);
+            // Set default zero values for first row
+            if (i == 0) {
+                tableModel.setValueAt("0.000000", i, 12); // Discount %
+            }
         }
         
         itemServiceTypeCombo = new JComboBox<>(new String[]{"Item", "Service"});
@@ -256,11 +279,11 @@ public class InvoiceForm extends JFrame {
         balanceDueField.setFont(new Font("Arial", Font.BOLD, 12));
         
         // Buttons with styled colors matching screenshot
-        addNewButton = createStyledButton("Add & New", PRIMARY_BUTTON_COLOR);
-        addDraftNewButton = createStyledButton("Add Draft & New", PRIMARY_BUTTON_COLOR);
+        addNewButton = createStyledButton("Add & New", ADD_NEW_BUTTON_COLOR);
+        addDraftNewButton = createStyledButton("Add Draft & New", ADD_DRAFT_BUTTON_COLOR);
         cancelButton = createStyledButton("Cancel", CANCEL_BUTTON_COLOR);
-        copyFromButton = createStyledButton("Copy From", SECONDARY_BUTTON_COLOR);
-        copyToButton = createStyledButton("Copy To", SECONDARY_BUTTON_COLOR);
+        copyFromButton = createStyledButton("Copy From", COPY_BUTTON_COLOR);
+        copyToButton = createStyledButton("Copy To", COPY_BUTTON_COLOR);
         
         // Add action listeners
         addNewButton.addActionListener(e -> saveInvoice(false));
@@ -287,10 +310,15 @@ public class InvoiceForm extends JFrame {
     private JButton createStyledButton(String text, Color bgColor) {
         JButton button = new JButton(text);
         button.setBackground(bgColor);
-        button.setForeground(Color.WHITE);
+        // Set text color: white for dark buttons, dark gray for light buttons
+        if (bgColor.getRed() > 200 && bgColor.getGreen() > 200 && bgColor.getBlue() > 200) {
+            button.setForeground(new Color(60, 60, 60)); // Dark gray text for light buttons
+        } else {
+            button.setForeground(Color.WHITE); // White text for dark buttons
+        }
         button.setFont(new Font("Segoe UI", Font.PLAIN, 11));
         button.setFocusPainted(false);
-        button.setBorderPainted(false);
+        button.setBorder(BorderFactory.createLineBorder(new Color(180, 180, 180), 1)); // Flat border with no radius
         button.setOpaque(true);
         button.setPreferredSize(new Dimension(120, 28));
         button.setCursor(new Cursor(Cursor.HAND_CURSOR));
@@ -410,25 +438,8 @@ public class InvoiceForm extends JFrame {
         
         int rightRow = 0;
         
-        // No. with dropdown
-        gbc2.gridx = 0;
-        gbc2.gridy = rightRow;
-        gbc2.gridwidth = 1;
-        gbc2.weightx = 0;
-        JLabel noLabel = new JLabel("No.");
-        noLabel.setForeground(Color.BLACK);
-        noLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
-        rightPanel.add(noLabel, gbc2);
-        
-        gbc2.gridx = 1;
-        gbc2.weightx = 0;
-        invoiceTypeCombo.setPreferredSize(new Dimension(60, 20));
-        rightPanel.add(invoiceTypeCombo, gbc2);
-        
-        gbc2.gridx = 2;
-        gbc2.weightx = 1.0;
-        rightPanel.add(invoiceNoField, gbc2);
-        rightRow++;
+        // No.
+        addFormRow(rightPanel, gbc2, rightRow++, "No.", invoiceNoField, null);
         
         // Status
         addFormRow(rightPanel, gbc2, rightRow++, "Status", statusField, null);
@@ -504,16 +515,48 @@ public class InvoiceForm extends JFrame {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBorder(new EmptyBorder(5, 10, 5, 10));
         
-        // Tabs Panel
-        JTabbedPane tabbedPane = new JTabbedPane();
-        tabbedPane.setPreferredSize(new Dimension(0, 35));
-        tabbedPane.addTab("Contents", null);
-        tabbedPane.addTab("Logistics", null);
-        tabbedPane.addTab("Accounting", null);
-        tabbedPane.addTab("Attachments", null);
-        tabbedPane.addTab("TIMS", null);
-        tabbedPane.addTab("Email/SMS", null);
-        tabbedPane.addTab("ETIMS", null);
+        // Custom tabs panel that spans uniformly
+        JPanel tabsPanel = new JPanel(new GridLayout(1, 7, 0, 0));
+        tabsPanel.setBackground(new Color(240, 240, 240));
+        tabsPanel.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, Color.GRAY));
+        
+        String[] tabNames = {"Contents", "Logistics", "Accounting", "Attachments", "TIMS", "Email/SMS", "ETIMS"};
+        for (int i = 0; i < tabNames.length; i++) {
+            JButton tabButton = new JButton(tabNames[i]);
+            tabButton.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+            tabButton.setFocusPainted(false);
+            tabButton.setBorderPainted(true);
+            tabButton.setContentAreaFilled(true);
+            tabButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+            
+            if (i == 0) { // Contents tab is selected by default
+                tabButton.setBackground(Color.WHITE);
+                tabButton.setForeground(Color.BLACK);
+                tabButton.setBorder(BorderFactory.createMatteBorder(2, 1, 0, 1, Color.GRAY));
+            } else {
+                tabButton.setBackground(new Color(240, 240, 240));
+                tabButton.setForeground(Color.BLACK);
+                tabButton.setBorder(BorderFactory.createMatteBorder(0, 1, 1, 1, Color.GRAY));
+            }
+            
+            final int tabIndex = i;
+            tabButton.addActionListener(e -> {
+                // Update all tab buttons
+                Component[] components = tabsPanel.getComponents();
+                for (int j = 0; j < components.length; j++) {
+                    JButton btn = (JButton) components[j];
+                    if (j == tabIndex) {
+                        btn.setBackground(Color.WHITE);
+                        btn.setBorder(BorderFactory.createMatteBorder(2, 1, 0, 1, Color.GRAY));
+                    } else {
+                        btn.setBackground(new Color(240, 240, 240));
+                        btn.setBorder(BorderFactory.createMatteBorder(0, 1, 1, 1, Color.GRAY));
+                    }
+                }
+            });
+            
+            tabsPanel.add(tabButton);
+        }
         
         // Top controls panel
         JPanel topControlsPanel = new JPanel(new BorderLayout());
@@ -536,7 +579,7 @@ public class InvoiceForm extends JFrame {
         
         JPanel topPanel = new JPanel(new BorderLayout());
         topPanel.setBackground(Color.WHITE);
-        topPanel.add(tabbedPane, BorderLayout.NORTH);
+        topPanel.add(tabsPanel, BorderLayout.NORTH);
         topPanel.add(topControlsPanel, BorderLayout.CENTER);
         
         panel.add(topPanel, BorderLayout.NORTH);
@@ -609,7 +652,7 @@ public class InvoiceForm extends JFrame {
         leftPanel.add(journalLabel, gbc);
         gbc.gridx = 1;
         gbc.weightx = 1.0;
-        gbc.gridwidth = 3;
+        gbc.gridwidth = 1;
         leftPanel.add(new JScrollPane(journalRemarkArea), gbc);
         row++;
         
@@ -623,7 +666,7 @@ public class InvoiceForm extends JFrame {
         leftPanel.add(remarksLabel, gbc);
         gbc.gridx = 1;
         gbc.weightx = 1.0;
-        gbc.gridwidth = 3;
+        gbc.gridwidth = 1;
         leftPanel.add(new JScrollPane(remarksArea), gbc);
         
         // Right Section (Financial Totals)
@@ -646,20 +689,8 @@ public class InvoiceForm extends JFrame {
         // Total Down Payment
         addFinancialRow(rightPanel, gbc2, rightRow++, "Total Down Payment", totalDownPaymentField);
         
-        // Freight with arrow icon
-        gbc2.gridx = 0;
-        gbc2.gridy = rightRow;
-        gbc2.gridwidth = 1;
-        gbc2.weightx = 0;
-        JLabel freightLabel = new JLabel("▼ Freight");
-        freightLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
-        rightPanel.add(freightLabel, gbc2);
-        
-        gbc2.gridx = 1;
-        gbc2.weightx = 1.0;
-        freightField.setFont(new Font("Segoe UI", Font.PLAIN, 11));
-        rightPanel.add(freightField, gbc2);
-        rightRow++;
+        // Freight
+        addFinancialRow(rightPanel, gbc2, rightRow++, "Freight", freightField);
         
         // Rounding with checkbox
         gbc2.gridx = 0;

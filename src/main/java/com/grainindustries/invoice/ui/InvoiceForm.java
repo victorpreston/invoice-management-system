@@ -312,15 +312,26 @@ public class InvoiceForm extends JFrame {
     
     private JPanel createHeaderPanel() {
         JPanel panel = new JPanel(new BorderLayout(10, 5));
-        panel.setBackground(HEADER_BG_COLOR);
-        panel.setBorder(new CompoundBorder(
-            BorderFactory.createMatteBorder(0, 0, 2, 0, new Color(60, 80, 100)),
-            new EmptyBorder(10, 10, 5, 10)
-        ));
+        panel.setBackground(Color.WHITE);
+        panel.setBorder(new EmptyBorder(0, 10, 5, 10));
+        
+        // Title bar - thin blue-gray bar
+        JLabel titleLabel = new JLabel("AR Invoice");
+        titleLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        titleLabel.setForeground(Color.WHITE);
+        titleLabel.setOpaque(true);
+        titleLabel.setBackground(HEADER_BG_COLOR);
+        titleLabel.setBorder(new EmptyBorder(5, 10, 5, 10));
+        panel.add(titleLabel, BorderLayout.NORTH);
+        
+        // Form fields container
+        JPanel formContainer = new JPanel(new BorderLayout(10, 5));
+        formContainer.setBackground(Color.WHITE);
+        formContainer.setBorder(new EmptyBorder(10, 0, 5, 0));
         
         // Left side panel
         JPanel leftPanel = new JPanel(new GridBagLayout());
-        leftPanel.setBackground(HEADER_BG_COLOR);
+        leftPanel.setBackground(Color.WHITE);
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(3, 3, 3, 3);
         gbc.fill = GridBagConstraints.HORIZONTAL;
@@ -357,7 +368,7 @@ public class InvoiceForm extends JFrame {
         gbc.gridy = 0;
         gbc.gridwidth = 1;
         JLabel rebateLabel = new JLabel("Rebate Route");
-        rebateLabel.setForeground(Color.WHITE);
+        rebateLabel.setForeground(Color.BLACK);
         rebateLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
         leftPanel.add(rebateLabel, gbc);
         gbc.gridx = 3;
@@ -366,7 +377,7 @@ public class InvoiceForm extends JFrame {
         
         // Right side panel
         JPanel rightPanel = new JPanel(new GridBagLayout());
-        rightPanel.setBackground(HEADER_BG_COLOR);
+        rightPanel.setBackground(Color.WHITE);
         GridBagConstraints gbc2 = new GridBagConstraints();
         gbc2.insets = new Insets(3, 3, 3, 3);
         gbc2.fill = GridBagConstraints.HORIZONTAL;
@@ -407,8 +418,10 @@ public class InvoiceForm extends JFrame {
         gbc2.gridwidth = 2;
         rightPanel.add(approvalLabel, gbc2);
         
-        panel.add(leftPanel, BorderLayout.WEST);
-        panel.add(rightPanel, BorderLayout.EAST);
+        formContainer.add(leftPanel, BorderLayout.WEST);
+        formContainer.add(rightPanel, BorderLayout.EAST);
+        
+        panel.add(formContainer, BorderLayout.CENTER);
         
         return panel;
     }
@@ -419,11 +432,8 @@ public class InvoiceForm extends JFrame {
         gbc.gridwidth = 1;
         gbc.weightx = 0;
         
-        // Check if panel has dark background (header), then use white text
         JLabel labelComponent = new JLabel(label);
-        if (panel.getBackground().equals(HEADER_BG_COLOR)) {
-            labelComponent.setForeground(Color.WHITE);
-        }
+        labelComponent.setForeground(Color.BLACK);
         labelComponent.setFont(new Font("Segoe UI", Font.PLAIN, 11));
         panel.add(labelComponent, gbc);
         
@@ -439,9 +449,7 @@ public class InvoiceForm extends JFrame {
         
         if (button != null) {
             JPanel fieldPanel = new JPanel(new BorderLayout(2, 0));
-            if (panel.getBackground().equals(HEADER_BG_COLOR)) {
-                fieldPanel.setBackground(HEADER_BG_COLOR);
-            }
+            fieldPanel.setBackground(Color.WHITE);
             fieldPanel.add(component, BorderLayout.CENTER);
             fieldPanel.add(button, BorderLayout.EAST);
             panel.add(fieldPanel, gbc);
@@ -487,10 +495,12 @@ public class InvoiceForm extends JFrame {
     
     private JPanel createFooterPanel() {
         JPanel panel = new JPanel(new BorderLayout(10, 5));
+        panel.setBackground(Color.WHITE);
         panel.setBorder(new EmptyBorder(5, 10, 10, 10));
         
         // Left Section
         JPanel leftPanel = new JPanel(new GridBagLayout());
+        leftPanel.setBackground(Color.WHITE);
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(3, 3, 3, 3);
         gbc.fill = GridBagConstraints.HORIZONTAL;
@@ -512,7 +522,9 @@ public class InvoiceForm extends JFrame {
         gbc.gridy = 2;
         gbc.gridwidth = 1;
         gbc.weightx = 0;
-        leftPanel.add(new JLabel("TransportCode"), gbc);
+        JLabel transportLabel = new JLabel("TransportCode");
+        transportLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        leftPanel.add(transportLabel, gbc);
         gbc.gridx = 3;
         gbc.weightx = 1.0;
         leftPanel.add(transportCodeField, gbc);
@@ -522,7 +534,9 @@ public class InvoiceForm extends JFrame {
         gbc.gridy = row;
         gbc.gridwidth = 1;
         gbc.weightx = 0;
-        leftPanel.add(new JLabel("Route Name"), gbc);
+        JLabel routeLabel = new JLabel("Route Name");
+        routeLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        leftPanel.add(routeLabel, gbc);
         gbc.gridx = 1;
         gbc.weightx = 1.0;
         leftPanel.add(routeNameField, gbc);
@@ -533,7 +547,9 @@ public class InvoiceForm extends JFrame {
         gbc.gridy = row;
         gbc.gridwidth = 1;
         gbc.weightx = 0;
-        leftPanel.add(new JLabel("Journal Remark"), gbc);
+        JLabel journalLabel = new JLabel("Journal Remark");
+        journalLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        leftPanel.add(journalLabel, gbc);
         gbc.gridx = 1;
         gbc.weightx = 1.0;
         gbc.gridwidth = 3;
@@ -545,7 +561,9 @@ public class InvoiceForm extends JFrame {
         gbc.gridy = row;
         gbc.gridwidth = 1;
         gbc.weightx = 0;
-        leftPanel.add(new JLabel("Remarks"), gbc);
+        JLabel remarksLabel = new JLabel("Remarks");
+        remarksLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        leftPanel.add(remarksLabel, gbc);
         gbc.gridx = 1;
         gbc.weightx = 1.0;
         gbc.gridwidth = 3;
@@ -553,6 +571,7 @@ public class InvoiceForm extends JFrame {
         
         // Right Section (Financial Totals)
         JPanel rightPanel = new JPanel(new GridBagLayout());
+        rightPanel.setBackground(Color.WHITE);
         GridBagConstraints gbc2 = new GridBagConstraints();
         gbc2.insets = new Insets(2, 5, 2, 5);
         gbc2.fill = GridBagConstraints.HORIZONTAL;
@@ -593,6 +612,7 @@ public class InvoiceForm extends JFrame {
         
         // Bottom Buttons Panel
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        buttonPanel.setBackground(Color.WHITE);
         buttonPanel.add(addNewButton);
         buttonPanel.add(addDraftNewButton);
         buttonPanel.add(cancelButton);
@@ -600,6 +620,7 @@ public class InvoiceForm extends JFrame {
         buttonPanel.add(copyToButton);
         
         JPanel bottomPanel = new JPanel(new BorderLayout());
+        bottomPanel.setBackground(Color.WHITE);
         bottomPanel.add(buttonPanel, BorderLayout.WEST);
         panel.add(bottomPanel, BorderLayout.SOUTH);
         

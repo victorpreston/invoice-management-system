@@ -2,6 +2,26 @@
 
 A Java Swing desktop application for managing invoices with SQL Server database backend.
 
+<img width="1167" height="703" alt="image" src="https://github.com/user-attachments/assets/f0526329-bf41-40cb-8b70-4e3cd2af2d20" />
+
+<img width="1164" height="702" alt="image" src="https://github.com/user-attachments/assets/1530d726-6685-4b52-a4f8-d51b6326daa4" />
+
+<img width="1916" height="1025" alt="image" src="https://github.com/user-attachments/assets/13c86cac-931f-4ad7-b85d-48944422b028" />
+
+
+## Database Schema
+
+![Database Schema](schema.png)
+
+- **Users**: Application users with authentication
+- **Customer**: Customer information (code, name, address, phone, etc.)
+- **Item**: Items/services catalog (number, description, unit, price)
+- **SalesEmployee**: Sales team members
+- **Invoice**: Invoice headers with customer, dates, totals
+- **InvoiceLine**: Invoice line items with item details and amounts
+
+
+
 ## Features
 
 - User authentication and registration
@@ -188,17 +208,6 @@ invoice-management-system/
 - Ensure Java 17 is installed: `java -version`
 - Clean Maven cache: `./mvnw clean`
 - Check network connectivity for Maven dependencies
-
-## Database Schema
-
-![Database Schema](schema.png)
-
-- **Users**: Application users with authentication
-- **Customer**: Customer information (code, name, address, phone, etc.)
-- **Item**: Items/services catalog (number, description, unit, price)
-- **SalesEmployee**: Sales team members
-- **Invoice**: Invoice headers with customer, dates, totals
-- **InvoiceLine**: Invoice line items with item details and amounts
 
 ## Business Rules
 
